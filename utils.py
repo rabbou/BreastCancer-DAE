@@ -6,11 +6,6 @@ def accuracy(out, labels):
     return torch.sum(pred==labels).item()
 
 class DataSet(object):
-    """
-    Class to manage your data
-    If you need to use batch for your algorithm, there is a next_batch implementation
-    """
-
     def __init__(self, images, classes):
 
         assert images.shape[0] == classes.shape[0], ('images.shape: %s labels.shape: %s' % (images.shape,classes.shape))

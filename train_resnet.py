@@ -9,6 +9,7 @@ import os
 import scipy.io as sio
 from utils import *
 import argparse
+from numpy import array, savetxt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--size', type=int, default=64, help='size of patches')
@@ -47,7 +48,7 @@ net.fc = nn.Linear(num_ftrs, 2)
 net.fc = net.fc
 net = nn.DataParallel(net).to(device)
 
-n_epochs = 35
+n_epochs = args.epochs
 print_every = 10
 valid_loss_min = np.Inf
 val_loss = []
@@ -104,3 +105,6 @@ for epoch in range(1, n_epochs+1):
             print('Improvement-Detected, save-model')
     scheduler.step(val_loss[-1])
     net.train()
+    
+savetxt('results/' + str(args.size) + '_' + str(args.magnitude) + '_acc.csv',
+        array([train_acc, val_acc]), delimiter=',')
