@@ -12,8 +12,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--size', type=int, default=64, help='size of patches')
-parser.add_argument('-m', '--magnitude', type=int, default=200, help='magnitude')
-parser.add_argument('-g', '--gpu', type=int, default=2, help='number of GPUs to use')
+parser.add_argument('-m', '--magnitude', type=int, default=200, help='magnitude of breakHis dataset to use')
+parser.add_argument('-bs', '--batch-size', type=int, default=512)
+parser.add_argument('-e', '--epochs', type=int, default=35)
 
 args = parser.parse_args()
 
@@ -30,7 +31,7 @@ transform = T.Compose([
 ])
 
 train_loader = tud.DataLoader(breakHis(train, transform=transform),
-                              batch_size=1024, shuffle=True, num_workers=8)
+                              batch_size=args.batch_size, shuffle=True, num_workers=8)
 test_loader = tud.DataLoader(breakHis(test, transform=transform),
                              batch_size=512, shuffle=True, num_workers=8)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
