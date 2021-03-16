@@ -1,9 +1,6 @@
 import torch
 import torch.utils.data as tud
-
-def accuracy(out, labels):
-    _,pred = torch.max(out, dim=1)
-    return torch.sum(pred==labels).item()
+from sklearn.metrics import f1_score
 
 class DataSet(object):
     def __init__(self, images, classes):
