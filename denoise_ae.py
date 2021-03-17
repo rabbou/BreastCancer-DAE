@@ -8,28 +8,56 @@ from torch.nn import functional as F
 from torchvision import transforms
 from utils import *
 
+class L1Penality(torch.autograd.Function):
+
+    """
+    In the forward pass we receive a Tensor containing the input and return
+    a Tensor containing the output. ctx is a context object that can be used
+    to stash information for backward computation. You can cache arbitrary
+    objects for use in the backward pass using the ctx.save_for_backward method.
+    """
+    @staticmethod
+    def forward(ctx, input, l1weight):
+        ctx.save_for_backward(input)
+        ctx.l1weight = l1weight
+        return input
+  
+    """
+    In the backward pass we receive a Tensor containing the gradient of the loss
+    with respect to the output, and we need to compute the gradient of the loss
+    with respect to the input.
+    """
+    @staticmethod
+    def backward(ctx, grad_output):
+        input, = ctx.saved_tensors
+        grad_input = input.clone().sign().mul(ctx.l1weight)
+        grad_input += grad_output
+        return grad_input, None
+
 class DAE(nn.Module):
-    def __init__(self):
+    def __init__(self, n_comp):
         super(DAE, self).__init__()
 
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.Conv2d(3, n_comp, kernel_size=3, stride=2, padding=1, bias=False),
             nn.ReLU(),
-            nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(n_comp, n_comp, kernel_size=3, stride=1, padding=1, bias=False),
             nn.MaxPool2d(2, stride=2, return_indices=True)
         )
 
         self.unpool = nn.MaxUnpool2d(2, stride=2, padding=0)
 
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(16, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(n_comp, n_comp, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.ReLU(),
-            nn.ConvTranspose2d(16, 3, kernel_size=3, stride=1, padding=1, output_padding=0),
+            nn.ConvTranspose2d(n_comp, 3, kernel_size=3, stride=1, padding=1, output_padding=0),
             nn.ReLU()
         )
 
-    def forward(self, input):
+    def forward(self, input, sparse_constraint):
         out, ind = self.encoder(input)
+        if sparse_constraint:
+            out = L1Penality.apply(out, 0.1)
         out = self.unpool(out, ind)
         out = self.decoder(out)
         return out
@@ -53,8 +81,8 @@ class AutoEncoder(object):
     path: string, path to save trained model (default: "vae.pth")
     """
     def __init__(self, n_inputs, patch_size=64, lr=1.0e-3, batch_size=512, noise_strength=25, cuda=True,
-                 path="dae.pt", load_weights=False):
-        self.model = nn.DataParallel(DAE())
+                 n_components=100, path="dae.pt", load_weights=False, sparse_constraint=False, plot=True):
+        self.model = nn.DataParallel(DAE(n_components))
         self.device = torch.device("cuda" if cuda and torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.batch_size = batch_size
@@ -64,6 +92,8 @@ class AutoEncoder(object):
         self.noise_strength = noise_strength
         self.trans = transforms.ToTensor()
         self.load_weights = load_weights
+        self.sparse_constraint = sparse_constraint
+        self.plot = plot
         self.initialize()
 
     def fit(self, Xr, Xd, epochs):
@@ -99,7 +129,7 @@ class AutoEncoder(object):
                 }
                 torch.save(checkpoint, self.path)
                 best_dev_loss = dev_loss
-            print('Epoch: %d, lr: %f, train loss: %.4f, dev loss: %.4f' % (
+            print('Epoch: %d, lr: %.0e, train loss: %.4f, dev loss: %.4f' % (
                 epoch, optimizer.param_groups[0]['lr'], train_loss, dev_loss))
             scheduler.step(dev_loss)
         return
@@ -129,8 +159,8 @@ class AutoEncoder(object):
             data_noisy = data_noisy.to(self.device, dtype=torch.float)
             data_clean = data_clean.to(self.device, dtype=torch.float)
             optimizer.zero_grad()
-            recon_batch = self.model(data_noisy)
-            if batch_idx == 0:
+            recon_batch = self.model(data_noisy, self.sparse_constraint)
+            if batch_idx == 0 and self.plot:
                 plot_samples(recon_batch.cpu().detach().numpy())
                 plot_samples(data_clean.cpu().detach().numpy())
             loss = self._loss_function(recon_batch, data_clean)
@@ -147,7 +177,7 @@ class AutoEncoder(object):
             for batch_idx, (data_clean, data_noisy) in enumerate(loader):
                 data_noisy = data_noisy.to(self.device, dtype=torch.float)
                 data_clean = data_clean.to(self.device, dtype=torch.float)
-                recon_batch = self.model(data_noisy)
+                recon_batch = self.model(data_noisy, self.sparse_constraint)
                 loss += self._loss_function(recon_batch, data_clean)
                 fs.append(recon_batch)
         fs = torch.cat(fs).cpu().numpy()

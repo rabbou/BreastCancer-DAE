@@ -42,7 +42,7 @@ def add_noise(img, strength=25):
     mean=0
     var=10
     sigma=var**.5
-    noise=np.random.normal(-strength,strength,img.shape)
+    noise=np.random.normal(0,strength,img.shape)
     noise=noise.reshape(row,col,3)
     img=img+noise
     return img
