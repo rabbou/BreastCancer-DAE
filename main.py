@@ -12,7 +12,7 @@ parser.add_argument('-re', '--resnet_epochs', type=int, default=35)
 parser.add_argument('-g', '--gpus', nargs='+', type=str, default=os.environ["CUDA_VISIBLE_DEVICES"].split(sep=','),
                     help='number of GPUs to use')
 parser.add_argument('-d', '--denoising', type=bool, default=True, help='number of GPUs to use')
-parser.add_argument('-p', '--path', type=str, default='results/', help='path to save the result files')
+parser.add_argument('-p', '--save_path', type=str, default='results/', help='path to save the result files')
 parser.add_argument('-ld', '--load_dae', type=bool, default=True, help='load pretrained DAE')
 parser.add_argument('-dp', '--dae_path', type=str, default='dae10.pt', help='path to load or save DAE')
 parser.add_argument('-n', '--noise_strength', type=int, default=10)
@@ -50,7 +50,7 @@ if args.denoising:
     torch.cuda.empty_cache()
     
 # train classifier
-train_acc, val_acc, train_f1, val_f1 = train_resnet(train, valid, test, args.batch_size, args.resnet_epochs)
+train_acc, test_acc, train_f1, test_f1 = train_resnet(train, valid, test, args.batch_size, args.resnet_epochs)
 savetxt(args.save_path + str(args.size) + '_' + str(args.magnitude) + '_acc.csv',
-            array([train_acc, val_acc, train_f1, val_f1]), delimiter=',')
+            array([train_acc, test_acc, train_f1, test_f1]), delimiter=',')
 torch.cuda.empty_cache()
