@@ -6,21 +6,20 @@ import matplotlib.pyplot as plt
 
 class DataSet(object):
     def __init__(self, images, classes):
-
         assert images.shape[0] == classes.shape[0], ('images.shape: %s labels.shape: %s' % (images.shape,classes.shape))
         self._num_examples = images.shape[0]
         self._images = images
         self._classes = classes
         self._index_in_epoch = 0
-    
+
     @property
     def images(self):
         return self._images
-    
+
     @property
     def classes(self):
         return self._classes
-    
+
 class breakHis(tud.Dataset):
     def __init__(self, data, transform=None):
         self.X = data.images
@@ -36,17 +35,14 @@ class breakHis(tud.Dataset):
         if self.transform:
             x = self.transform(x)
         return x, y
-    
+
 def add_noise(img, strength=25):
     row,col=img.shape[:2]
-    mean=0
-    var=10
-    sigma=var**.5
     noise=np.random.normal(0,strength,img.shape)
     noise=noise.reshape(row,col,3)
     img=img+noise
     return img
-    
+
 class noisy_unlabelled_breakHis(tud.Dataset):
     def __init__(self, data, noise_strength, transform=None):
         self.X = data
@@ -63,7 +59,7 @@ class noisy_unlabelled_breakHis(tud.Dataset):
             x = self.transform(x)
             x_noise = self.transform(x_noise)
         return x, x_noise
-    
+
 def plot_samples(data):
     fig, axs = plt.subplots(1, 10, constrained_layout = True, figsize=(10,2))
     for k in range(10):

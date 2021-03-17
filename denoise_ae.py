@@ -21,7 +21,7 @@ class L1Penality(torch.autograd.Function):
         ctx.save_for_backward(input)
         ctx.l1weight = l1weight
         return input
-  
+
     """
     In the backward pass we receive a Tensor containing the gradient of the loss
     with respect to the output, and we need to compute the gradient of the loss
@@ -75,10 +75,15 @@ class AutoEncoder(object):
     Parameters
     ----------
     n_inputs: int, feature size of input data
-    n_components: int, feature size of output
+    n_components: int, size of latent representation
     lr: float, learning rate (default: 0.001)
     batch_size: int, batch size (default: 512)
-    path: string, path to save trained model (default: "vae.pth")
+    path: string, path to save trained model (default: "dae.pt")
+    noise_strength: standard deviation for gaussian noise corruption
+    load_weights: whether to load previously trained Model
+    sparse_constraint: add sparsity to architecture
+    plot: plot samples at every epoch
+    cuda: whether to use cuda
     """
     def __init__(self, n_inputs, patch_size=64, lr=1.0e-3, batch_size=512, noise_strength=25, cuda=True,
                  n_components=100, path="dae.pt", load_weights=False, sparse_constraint=False, plot=True):
@@ -97,7 +102,7 @@ class AutoEncoder(object):
         self.initialize()
 
     def fit(self, Xr, Xd, epochs):
-        """Fit VAE from data Xr
+        """Fit DAE from data Xr
         Parameters
         ----------
         :in:
@@ -114,7 +119,7 @@ class AutoEncoder(object):
         start_epoch = 1
         if self.load_weights:
             model, optimizer, scheduler, start_epoch = load_ckp(self.path, self.model, optimizer, scheduler)
-            
+
         best_dev_loss = np.inf
         for epoch in range(start_epoch, epochs + start_epoch):
             train_loss = self._train(train_loader, optimizer)
@@ -184,14 +189,12 @@ class AutoEncoder(object):
         return loss/(batch_idx+1), fs
 
     def _loss_function(self, recon_x, x):
-        """VAE Loss
+        """Loss
         Parameters
         ----------
         :in:
         recon_x: 2d tensor of shape (batch_size, n_dim), reconstructed input
         x: 2d tensor of shape (batch_size, n_dim), input data
-        mu: 2d tensor of shape (batch_size, n_components), latent mean
-        logvar: 2d tensor of shape (batch_size, n_components), latent log-variance
         :out:
         l: 1d tensor, VAE loss
         """
